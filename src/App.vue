@@ -6,8 +6,10 @@ import { useSavedSecrets } from './composables/useSavedSecrets'
 import { totpProgressColor } from './utils/totpProgressColor'
 import SavedAccountRow from './components/SavedAccountRow.vue'
 
-/** Đổi dòng này nếu bạn muốn hiển thị liên hệ trong footer */
-const CONTACT_LINE = 'SĐT: 0848877758 — Ngô Anh Dũng'
+/** Thay số và tên thật khi cần hiển thị liên hệ trong footer */
+const CONTACT_PHONE_PLACEHOLDER = '0xx xxx xxxx'
+const CONTACT_NAME_PLACEHOLDER = 'Họ và tên'
+const CONTACT_LINE = `SĐT: ${CONTACT_PHONE_PLACEHOLDER} — ${CONTACT_NAME_PLACEHOLDER}`
 
 const secretInput = ref('')
 const nameInput = ref('')
@@ -108,6 +110,7 @@ function onCodeDisplayKeydown(e) {
           autocomplete="off"
           spellcheck="false"
           placeholder="Base32 hoặc otpauth://totp/..."
+          @keydown.enter.prevent="generateCode"
         />
       </div>
 
