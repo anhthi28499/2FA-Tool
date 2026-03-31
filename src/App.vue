@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { parseUserInput } from './utils/parseOtpauth'
 import { useTotp } from './composables/useTotp'
 import { useSavedSecrets } from './composables/useSavedSecrets'
+import { totpProgressColor } from './utils/totpProgressColor'
 import SavedAccountRow from './components/SavedAccountRow.vue'
 
 /** Đổi dòng này nếu bạn muốn hiển thị liên hệ trong footer */
@@ -16,7 +17,26 @@ const activeSecret = ref(null)
 const { entries, add, remove } = useSavedSecrets()
 const { code, progress } = useTotp(activeSecret)
 
-const hasActiveCode = computed(() => Boolean(code.value))
+const progressBarColor = computed(() => totpProgressColor(progress.value))
+
+const copyNotice = ref(null)
+let copyNoticeTimer = null
+
+function flashCopyNotice(text, ok = true) {
+  if (copyNoticeTimer) {
+    clearTimeout(copyNoticeTimer)
+    copyNoticeTimer = null
+  }
+  copyNotice.value = { text, ok }
+  copyNoticeTimer = window.setTimeout(() => {
+    copyNotice.value = null
+    copyNoticeTimer = null
+  }, 2800)
+}
+
+onUnmounted(() => {
+  if (copyNoticeTimer) clearTimeout(copyNoticeTimer)
+})
 
 function showParseError(err) {
   const map = {
@@ -59,8 +79,16 @@ async function copyCode(value) {
   if (!value) return
   try {
     await navigator.clipboard.writeText(value)
+    flashCopyNotice('Đã sao chép mã vào clipboard.', true)
   } catch {
-    /* ignore */
+    flashCopyNotice('Không thể sao chép. Kiểm tra quyền trình duyệt hoặc thử lại.', false)
+  }
+}
+
+function onCodeDisplayKeydown(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    copyCode(code.value)
   }
 }
 </script>
@@ -102,11 +130,38 @@ async function copyCode(value) {
       </div>
 
       <div class="code-box">
-        <div class="code-display mono">{{ code || '———' }}</div>
+        <div
+          class="code-display mono"
+          :class="{ 'code-display--clickable': code }"
+          :role="code ? 'button' : undefined"
+          :tabindex="code ? 0 : undefined"
+          :title="code ? 'Nhấn để sao chép mã' : undefined"
+          :aria-label="code ? 'Sao chép mã hiện tại' : undefined"
+          @click="copyCode(code)"
+          @keydown="onCodeDisplayKeydown"
+        >
+          {{ code || '———' }}
+        </div>
         <div class="progress-wrap" aria-hidden="true">
-          <div class="progress-bar" :style="{ width: `${progress * 100}%` }" />
+          <div
+            class="progress-bar"
+            :style="{
+              width: `${progress * 100}%`,
+              backgroundColor: progressBarColor,
+            }"
+          />
         </div>
       </div>
+
+      <p
+        v-if="copyNotice"
+        class="copy-notice"
+        :class="copyNotice.ok ? 'copy-notice--success' : 'copy-notice--error'"
+        role="status"
+        aria-live="polite"
+      >
+        {{ copyNotice.text }}
+      </p>
 
       <p class="note">
         <em
@@ -114,15 +169,6 @@ async function copyCode(value) {
           cookie sẽ bị mất.</em
         >
       </p>
-
-      <button
-        v-if="hasActiveCode"
-        type="button"
-        class="btn btn-ghost copy-main"
-        @click="copyCode(code)"
-      >
-        Copy mã hiện tại
-      </button>
 
       <h2 class="section-title">Danh sách chuỗi mã đã lưu</h2>
 
@@ -268,8 +314,25 @@ async function copyCode(value) {
   color: #2980b9;
 }
 
-.copy-main {
-  margin-bottom: 1rem;
+.copy-notice {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.copy-notice--success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.copy-notice--error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
 .code-box {
@@ -287,6 +350,21 @@ async function copyCode(value) {
   color: #2c3e50;
 }
 
+.code-display--clickable {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  outline-offset: 2px;
+}
+
+.code-display--clickable:hover {
+  background: rgba(52, 152, 219, 0.08);
+}
+
+.code-display--clickable:focus-visible {
+  outline: 2px solid #3498db;
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -301,8 +379,9 @@ async function copyCode(value) {
 
 .progress-bar {
   height: 100%;
-  background: #e74c3c;
-  transition: width 0.2s linear;
+  transition:
+    width 0.2s linear,
+    background-color 0.25s ease;
 }
 
 .note {

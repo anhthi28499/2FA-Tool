@@ -21,8 +21,8 @@ jobs:
           node-version: '20'
           cache: npm
 
-      - name: Install and build
-        run: npm ci && npm run build
+      - name: Install, test, and build
+        run: npm ci && npm run test:run && npm run build
 
       - name: Deploy dist to Vercel
         run: npx vercel@latest deploy dist --prod --yes --token "$VERCEL_TOKEN"

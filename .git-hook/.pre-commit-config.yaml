@@ -1,0 +1,20 @@
+# https://pre-commit.com
+# Cài hook: ./.git-hook/install.sh  (cần pre-commit trong PATH: pip install pre-commit)
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: npm-test
+        name: npm test (vitest)
+        entry: bash -c 'npm run test:run'
+        language: system
+        pass_filenames: false
+        always_run: true

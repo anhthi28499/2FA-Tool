@@ -32,6 +32,26 @@ npm run build
 
 Thư mục output: `dist/`.
 
+## Kiểm thử (Vitest)
+
+```bash
+npm run test        # chế độ watch
+npm run test:run    # chạy một lần (CI / pre-commit)
+```
+
+## Pre-commit
+
+Cần [pre-commit](https://pre-commit.com) (Python) trong PATH, rồi chạy script cài hook (config nằm trong `.git-hook/`):
+
+```bash
+pip install pre-commit
+./.git-hook/install.sh
+```
+
+Chạy toàn bộ hook tay (không commit): `pre-commit run --all-files -c .git-hook/.pre-commit-config.yaml`
+
+Mỗi lần `git commit`, hook sẽ chạy kiểm tra YAML/JSON và `npm run test:run`. Bỏ qua tạm thời (không khuyến khích): `git commit --no-verify`.
+
 ## Deploy lên Vercel
 
 ### Cách 1 — Qua trang Vercel (khuyến nghị, không cần token CLI)
