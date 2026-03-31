@@ -122,6 +122,15 @@ function onCodeDisplayKeydown(e) {
 }
 
 onMounted(() => {
+  const [navEntry] = performance.getEntriesByType('navigation')
+  // Cmd+R / F5: không điền lại từ /s/... — ô secret (và state) đã reset; chỉ gỡ path chia sẻ.
+  if (navEntry?.type === 'reload') {
+    if (window.location.pathname.startsWith('/s/')) {
+      window.history.replaceState(null, '', '/')
+    }
+    return
+  }
+
   const token = readTokenFromPathname(window.location.pathname)
   if (!token) return
   const raw = decodeSecretFromShare(token)
