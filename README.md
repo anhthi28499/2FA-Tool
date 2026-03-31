@@ -2,6 +2,8 @@
 
 Ứng dụng web tạo mã TOTP 6 số (30 giây), chạy hoàn toàn trên trình duyệt. Chuỗi secret được lưu trong `localStorage` của trình duyệt bạn.
 
+**Tài liệu chi tiết:** [Hoạt động, request, tương thích Google, Vercel & traffic](docs/HOAT-DONG-VA-KIEN-TRUC.md).
+
 ## Chạy local
 
 ```bash
