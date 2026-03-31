@@ -34,23 +34,56 @@ Thư mục output: `dist/`.
 
 ## Deploy lên Vercel
 
-1. Đẩy mã lên GitHub/GitLab/Bitbucket (khuyến nghị).
-2. Vào [Vercel](https://vercel.com) → **Add New Project** → import repository.
+### Cách 1 — Qua trang Vercel (khuyến nghị, không cần token CLI)
+
+1. Đẩy mã lên GitHub (hoặc GitLab/Bitbucket).
+2. [vercel.com](https://vercel.com) → **Add New Project** → **Import** repository.
 3. **Framework Preset**: Vite (hoặc Other).
 4. **Build Command**: `npm run build`
 5. **Output Directory**: `dist`
-6. Không cần biến môi trường cho bản này.
+6. **Deploy** — mỗi lần push lên nhánh production, Vercel tự build và deploy.
 
-Hoặc dùng Vercel CLI:
+Không cần `VERCEL_TOKEN` trên máy bạn nếu chỉ dùng cách này.
+
+### Cách 2 — Từ máy bằng Vercel CLI
+
+Lỗi `No existing credentials found` / `pass "--token"` nghĩa là CLI chưa có quyền. Làm **một trong hai**:
+
+**A. Đăng nhập tương tác (máy cá nhân):**
 
 ```bash
-npx vercel
+cd "/đường/dẫn/tới/2fa-tool"
+npx vercel@latest login
+npm run build
+npx vercel@latest deploy dist --prod
 ```
+
+Lần đầu CLI sẽ hỏi **link project** — chọn team / tạo project. Sau đó có thể dùng lại lệnh deploy.
+
+**B. Deploy bằng token (máy/CI, không mở trình duyệt):**
+
+1. Tạo token: [Vercel → Account → Tokens](https://vercel.com/account/tokens).
+2. Lấy **Org ID** và **Project ID**: sau khi `vercel link` xem file `.vercel/project.json`, hoặc Vercel → Project → **Settings → General**.
+3. Chạy (thay giá trị thật):
+
+```bash
+export VERCEL_TOKEN="..."   # token vừa tạo
+export VERCEL_ORG_ID="..."
+export VERCEL_PROJECT_ID="..."
+npm run build
+npx vercel@latest deploy dist --prod --yes --token "$VERCEL_TOKEN"
+```
+
+Nếu thiếu `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`, CLI có thể hỏi link hoặc báo lỗi — nên `vercel link` một lần trên máy trước, hoặc set đủ 3 biến như trên.
+
+Cảnh báo `npm warn deprecated tar` khi cài Vercel CLI tạm thời có thể bỏ qua; không chặn deploy.
 
 ## CI/CD (GitHub Actions)
 
 - **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): mỗi push/PR lên `main` hoặc `master` chạy `npm ci` và `npm run build`, đồng thời lưu artifact `dist` (7 ngày).
 - **CD** ([`.github/workflows/deploy-vercel.yml`](.github/workflows/deploy-vercel.yml)): sau khi build, deploy thư mục `dist` lên Vercel production khi push lên `main`/`master` (và có thể chạy tay bằng **Actions → Deploy (Vercel) → Run workflow**).
+
+**Nếu workflow báo giống lỗi CLI:** `No existing credentials` / thiếu token — workflow **bắt buộc** có secret `VERCEL_TOKEN` (và nên có `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Nếu chưa thêm secret, bước deploy sẽ fail giống chạy tay khi `$VERCEL_TOKEN` rỗng.
 
 Để CD hoạt động, thêm **Repository secrets** trên GitHub (**Settings → Secrets and variables → Actions**):
 
