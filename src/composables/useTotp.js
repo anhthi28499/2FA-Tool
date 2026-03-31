@@ -1,7 +1,10 @@
 import { ref, watch, onUnmounted, unref } from 'vue'
-import { generateSync } from 'otplib'
+import { generateSync, createGuardrails } from 'otplib'
 
 const STEP_MS = 30_000
+
+/** Cho phép secret Base32 ngắn (≥80 bit) như nhiều dịch vụ / ví dụ JBSWY3DPEHPK3PXP; mặc định otplib v13 yêu cầu ≥128 bit. */
+const guardrails = createGuardrails({ MIN_SECRET_BYTES: 10 })
 
 /**
  * Live TOTP code and progress (1 → 0 within each 30s window).
@@ -21,7 +24,11 @@ export function useTotp(secretSource) {
       return
     }
     try {
-      code.value = generateSync({ secret: raw, strategy: 'totp' })
+      code.value = generateSync({
+        secret: raw,
+        strategy: 'totp',
+        guardrails,
+      })
       const now = Date.now()
       const msInPeriod = now % STEP_MS
       progress.value = (STEP_MS - msInPeriod) / STEP_MS
