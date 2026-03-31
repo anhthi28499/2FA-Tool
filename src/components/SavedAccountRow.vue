@@ -9,12 +9,24 @@ const props = defineProps({
   secret: { type: String, required: true },
 })
 
-defineEmits(['remove', 'copy'])
+const emit = defineEmits(['remove', 'copy'])
 
 const secretRef = computed(() => props.secret)
 const { code, progress } = useTotp(secretRef)
 
 const masked = computed(() => maskSecret(props.secret))
+
+function onCodeCellClick() {
+  if (code.value) emit('copy', code.value)
+}
+
+function onCodeCellKeydown(e) {
+  if (!code.value) return
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    emit('copy', code.value)
+  }
+}
 </script>
 
 <template>
@@ -34,7 +46,16 @@ const masked = computed(() => maskSecret(props.secret))
     </td>
     <td>{{ name || '—' }}</td>
     <td class="mono muted">{{ masked }}</td>
-    <td class="code-cell">
+    <td
+      class="code-cell"
+      :class="{ 'code-cell--clickable': code }"
+      :role="code ? 'button' : undefined"
+      :tabindex="code ? 0 : undefined"
+      :title="code ? 'Nhấn để sao chép mã' : undefined"
+      :aria-label="code ? 'Sao chép mã hiện tại' : undefined"
+      @click="onCodeCellClick"
+      @keydown="onCodeCellKeydown"
+    >
       <span class="mono code-digits">{{ code || '—' }}</span>
       <div class="progress-wrap" aria-hidden="true">
         <div class="progress-bar" :style="{ width: `${progress * 100}%` }" />
@@ -85,7 +106,24 @@ const masked = computed(() => maskSecret(props.secret))
 }
 .code-cell {
   min-width: 8rem;
+  vertical-align: top;
 }
+
+.code-cell--clickable {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  outline-offset: 2px;
+}
+
+.code-cell--clickable:hover {
+  background: rgba(52, 152, 219, 0.08);
+}
+
+.code-cell--clickable:focus-visible {
+  outline: 2px solid #3498db;
+}
+
 .code-digits {
   font-size: 1.15rem;
   font-weight: 600;

@@ -26,23 +26,36 @@ const { code, progress } = useTotp(activeSecret)
 
 const progressBarColor = computed(() => totpProgressColor(progress.value))
 
-const copyNotice = ref(null)
-let copyNoticeTimer = null
+/** Toast mới nhất ở đầu mảng (trên cùng). */
+const copyToasts = ref([])
+let nextCopyToastId = 0
+const copyToastTimers = new Map()
+const MAX_COPY_TOASTS = 8
+
+function removeCopyToast(id) {
+  const timer = copyToastTimers.get(id)
+  if (timer !== undefined) {
+    clearTimeout(timer)
+    copyToastTimers.delete(id)
+  }
+  const idx = copyToasts.value.findIndex((t) => t.id === id)
+  if (idx !== -1) copyToasts.value.splice(idx, 1)
+}
 
 function flashCopyNotice(text, ok = true) {
-  if (copyNoticeTimer) {
-    clearTimeout(copyNoticeTimer)
-    copyNoticeTimer = null
+  while (copyToasts.value.length >= MAX_COPY_TOASTS) {
+    const oldest = copyToasts.value[copyToasts.value.length - 1]
+    removeCopyToast(oldest.id)
   }
-  copyNotice.value = { text, ok }
-  copyNoticeTimer = window.setTimeout(() => {
-    copyNotice.value = null
-    copyNoticeTimer = null
-  }, 2800)
+  const id = nextCopyToastId++
+  copyToasts.value.unshift({ id, text, ok })
+  const timer = window.setTimeout(() => removeCopyToast(id), 2800)
+  copyToastTimers.set(id, timer)
 }
 
 onUnmounted(() => {
-  if (copyNoticeTimer) clearTimeout(copyNoticeTimer)
+  copyToastTimers.forEach((t) => clearTimeout(t))
+  copyToastTimers.clear()
 })
 
 function clearShareUrlIfNeeded() {
@@ -146,6 +159,23 @@ onMounted(() => {
 
 <template>
   <div class="page">
+    <TransitionGroup
+      name="copy-toast"
+      tag="div"
+      class="copy-toast-stack"
+      role="status"
+      aria-live="polite"
+    >
+      <p
+        v-for="t in copyToasts"
+        :key="t.id"
+        class="copy-notice"
+        :class="t.ok ? 'copy-notice--success' : 'copy-notice--error'"
+      >
+        {{ t.text }}
+      </p>
+    </TransitionGroup>
+
     <main class="card">
       <h1 class="title">Authenticator — Lấy mã code từ chuỗi 2FA</h1>
 
@@ -204,16 +234,6 @@ onMounted(() => {
           />
         </div>
       </div>
-
-      <p
-        v-if="copyNotice"
-        class="copy-notice"
-        :class="copyNotice.ok ? 'copy-notice--success' : 'copy-notice--error'"
-        role="status"
-        aria-live="polite"
-      >
-        {{ copyNotice.text }}
-      </p>
 
       <p class="note">
         <em
@@ -366,13 +386,30 @@ onMounted(() => {
   color: #2980b9;
 }
 
+.copy-toast-stack {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
 .copy-notice {
-  margin: 0 0 0.75rem;
+  margin: 0;
   padding: 0.55rem 0.85rem;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 0.9rem;
-  text-align: center;
+  text-align: left;
   font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .copy-notice--success {
@@ -385,6 +422,37 @@ onMounted(() => {
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
+}
+
+.copy-toast-enter-active {
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease;
+}
+
+.copy-toast-enter-from {
+  transform: translateX(calc(100% + 1.25rem));
+  opacity: 0;
+}
+
+.copy-toast-enter-to {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.copy-toast-leave-active {
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
+.copy-toast-leave-to {
+  opacity: 0;
+  transform: translateX(0.75rem) scale(0.98);
+}
+
+.copy-toast-move {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .code-box {
