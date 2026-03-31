@@ -1,6 +1,11 @@
 <script setup>
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { parseUserInput } from './utils/parseOtpauth'
+import {
+  encodeSecretForShare,
+  decodeSecretFromShare,
+  readTokenFromPathname,
+} from './utils/shareLink'
 import { useTotp } from './composables/useTotp'
 import { useSavedSecrets } from './composables/useSavedSecrets'
 import { totpProgressColor } from './utils/totpProgressColor'
@@ -40,6 +45,24 @@ onUnmounted(() => {
   if (copyNoticeTimer) clearTimeout(copyNoticeTimer)
 })
 
+function clearShareUrlIfNeeded() {
+  if (window.location.pathname.startsWith('/s/')) {
+    window.history.replaceState(null, '', '/')
+  }
+}
+
+function setShareUrlForRaw(raw) {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!trimmed) return
+  const token = encodeSecretForShare(trimmed)
+  if (!token) return
+  const nextPath = `/s/${token}`
+  const { pathname, search, hash } = window.location
+  if (pathname !== nextPath) {
+    window.history.replaceState(null, '', `${nextPath}${search}${hash}`)
+  }
+}
+
 function showParseError(err) {
   const map = {
     empty: 'Vui lòng nhập chuỗi mã 2FA hoặc URL otpauth.',
@@ -57,12 +80,14 @@ function generateCode() {
   if (parsed.error) {
     activeSecret.value = null
     showParseError(parsed.error)
+    clearShareUrlIfNeeded()
     return
   }
   activeSecret.value = parsed.secret
   if (parsed.suggestedName && !nameInput.value.trim()) {
     nameInput.value = parsed.suggestedName
   }
+  setShareUrlForRaw(secretInput.value)
 }
 
 function saveEntry() {
@@ -70,11 +95,13 @@ function saveEntry() {
   const parsed = parseUserInput(secretInput.value)
   if (parsed.error) {
     showParseError(parsed.error)
+    clearShareUrlIfNeeded()
     return
   }
   const name = nameInput.value.trim() || parsed.suggestedName || ''
   add({ name, secret: parsed.secret })
   activeSecret.value = parsed.secret
+  setShareUrlForRaw(secretInput.value)
 }
 
 async function copyCode(value) {
@@ -93,6 +120,19 @@ function onCodeDisplayKeydown(e) {
     copyCode(code.value)
   }
 }
+
+onMounted(() => {
+  const token = readTokenFromPathname(window.location.pathname)
+  if (!token) return
+  const raw = decodeSecretFromShare(token)
+  if (!raw) {
+    formError.value = 'Liên kết chia sẻ không hợp lệ hoặc đã hỏng.'
+    window.history.replaceState(null, '', '/')
+    return
+  }
+  secretInput.value = raw
+  generateCode()
+})
 </script>
 
 <template>
